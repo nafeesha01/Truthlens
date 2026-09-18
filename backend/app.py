@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import joblib
+import os
 
 app = Flask(__name__)
 CORS(app)
@@ -40,6 +41,16 @@ def predict():
                 "error": "Article text is required"
             }), 400
 
+        # Prevent unreliable headline-only predictions
+        if len(article.split()) < 20:
+            return jsonify({
+                "error": (
+                    "Please provide a longer article. "
+                    "Headlines alone are often insufficient "
+                    "for reliable analysis."
+                )
+            }), 400
+
         # Convert text into TF-IDF features
         article_vector = vectorizer.transform([article])
 
@@ -56,21 +67,35 @@ def predict():
         return jsonify({
             "prediction": result,
             "confidence": round(confidence, 2),
-            "fake_probability": round(probabilities[0][0] * 100, 2),
-            "real_probability": round(probabilities[0][1] * 100, 2),
+            "fake_probability": round(
+                probabilities[0][0] * 100,
+                2
+            ),
+            "real_probability": round(
+                probabilities[0][1] * 100,
+                2
+            ),
             "word_count": len(article.split()),
             "character_count": len(article)
         })
 
     except Exception as e:
+
         return jsonify({
             "error": str(e)
         }), 500
 
 
 if __name__ == "__main__":
+
+    port = int(
+        os.environ.get(
+            "PORT",
+            5000
+        )
+    )
+
     app.run(
         host="0.0.0.0",
-        port=5000,
-        debug=True
+        port=port
     )
